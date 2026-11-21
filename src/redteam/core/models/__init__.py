@@ -14,6 +14,15 @@ from redteam.core.models.context import (
     TestItemProgress,
     TestItemStatus,
 )
+from redteam.core.models.decision import AttackDecision
+from redteam.core.models.step import (
+    AvailableStrategy,
+    EvaluationFeedback,
+    RiskObjective,
+    StepContext,
+    StepHistoryEntry,
+    TargetProfile,
+)
 from redteam.core.models.task import (
     BaselineTestSpec,
     CaseSources,
@@ -28,19 +37,26 @@ from redteam.core.models.task import (
 )
 
 __all__ = [
+    "AttackDecision",
+    "AvailableStrategy",
     "BaselineTestSpec",
     "CaseSource",
     "CaseSources",
     "DatasetCaseSource",
     "DatasetReference",
     "DatasetSampleConfig",
+    "EvaluationFeedback",
     "GenerationConfig",
     "GeneratedCaseSource",
     "ModelConfig",
     "RiskTestSpec",
+    "RiskObjective",
+    "StepContext",
+    "StepHistoryEntry",
     "TestCase",
     "TaskContext",
     "TargetConfig",
+    "TargetProfile",
     "TaskDefinition",
     "TaskStatus",
     "TerminationReason",
