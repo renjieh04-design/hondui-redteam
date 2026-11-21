@@ -38,6 +38,13 @@ from redteam.core.models.execution import (
     ExecutionResult,
     ExecutionStatus,
 )
+from redteam.core.models.retry import (
+    BackoffConfig,
+    CallRetryConfig,
+    InternalRetryConfig,
+    RetryableErrorType,
+    RetryPolicy,
+)
 from redteam.core.models.step import (
     AvailableStrategy,
     EvaluationFeedback,
@@ -63,9 +70,11 @@ from redteam.core.models.task import (
 __all__ = [
     "AttackDecision",
     "AvailableStrategy",
+    "BackoffConfig",
     "BaselineTestSpec",
     "CaseSource",
     "CaseSources",
+    "CallRetryConfig",
     "DatasetCaseSource",
     "DatasetReference",
     "DatasetSampleConfig",
@@ -89,7 +98,10 @@ __all__ = [
     "GenerationConfig",
     "GeneratedCaseSource",
     "ModelConfig",
+    "InternalRetryConfig",
     "RiskTestSpec",
+    "RetryableErrorType",
+    "RetryPolicy",
     "RiskObjective",
     "ScorerMethodOrigin",
     "ScorerResult",

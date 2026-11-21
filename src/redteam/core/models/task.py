@@ -10,6 +10,7 @@ from pydantic import (
 )
 
 from redteam.core.models.common import DomainModel, NonEmptyStr
+from redteam.core.models.retry import RetryPolicy
 
 
 class ModelConfig(DomainModel):
@@ -158,6 +159,7 @@ class TaskDefinition(DomainModel):
     target: TargetConfig
     attacker_model: ModelConfig | None = None
     judge_model: ModelConfig | None = None
+    retry_policy: RetryPolicy = Field(default_factory=RetryPolicy)
     test_items: tuple[TestItem, ...] = Field(min_length=1)
 
     @model_validator(mode="after")

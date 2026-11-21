@@ -102,6 +102,25 @@ versioned references so a later rule change cannot alter the meaning of a run.
 Changing this field from a plain string to `{rule_id, version}` is a breaking
 configuration change; the migration is documented in `MIGRATIONS.md`.
 
+## Retry policy
+
+The four independent, resolved retry configurations attached to a task:
+attacker-model calls, target calls, judge-model calls, and recoverable internal
+operations. Existing task configurations receive a complete policy with all
+retry counts set to zero, so adding the field does not silently enable retries.
+
+External-call policies include a finite positive timeout. Every policy has a
+failure-only retry count, an explicit whitelist of normalized transient error
+types, and independent exponential-backoff parameters. Jitter is mandatory in
+V1 and is represented by a positive ratio rather than an enable flag. Internal
+operations have no universal timeout because not every operation has a safe,
+cancellable boundary.
+
+`max_retries` excludes the initial attempt, so a call may be attempted at most
+`1 + max_retries` times. Only TaskRunner decides whether to retry and schedules
+the wait. The policy does not execute calls, sleep, hold counters, persist
+attempts, change attack rounds, or make termination decisions.
+
 ## Attack decision
 
 The single final output produced by the attacker for one step context. It
