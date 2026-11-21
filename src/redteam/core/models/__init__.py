@@ -15,6 +15,12 @@ from redteam.core.models.context import (
     TestItemStatus,
 )
 from redteam.core.models.decision import AttackDecision
+from redteam.core.models.evidence import (
+    EvidenceKind,
+    EvidenceProducerType,
+    EvidenceRedactionStatus,
+    EvidenceReference,
+)
 from redteam.core.models.evaluation import (
     EvaluationAggregationMethod,
     EvaluationError,
@@ -71,6 +77,10 @@ __all__ = [
     "EvaluationRuleReference",
     "EvaluationStatus",
     "EvaluationVerdict",
+    "EvidenceKind",
+    "EvidenceProducerType",
+    "EvidenceRedactionStatus",
+    "EvidenceReference",
     "ExecutionAttempt",
     "ExecutionError",
     "ExecutionErrorType",

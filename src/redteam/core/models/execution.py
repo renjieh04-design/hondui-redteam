@@ -37,6 +37,7 @@ class ExecutionErrorType(StrEnum):
     TARGET_CLIENT_ERROR = "target_client_error"
     TARGET_SERVER_ERROR = "target_server_error"
     INVALID_RESPONSE_ERROR = "invalid_response_error"
+    EVIDENCE_PERSISTENCE_ERROR = "evidence_persistence_error"
     CANCELLED = "cancelled"
     UNKNOWN = "unknown"
 

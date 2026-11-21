@@ -67,6 +67,7 @@ class EvaluationErrorType(StrEnum):
     SCORER_ERROR = "scorer_error"
     JUDGE_MODEL_ERROR = "judge_model_error"
     INVALID_SCORER_OUTPUT = "invalid_scorer_output"
+    EVIDENCE_PERSISTENCE_ERROR = "evidence_persistence_error"
     CANCELLED = "cancelled"
     UNKNOWN = "unknown"
 

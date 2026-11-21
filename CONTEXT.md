@@ -132,6 +132,25 @@ A successful attempt must retain at least one evidence reference so its request
 or normalized response can be traced by downstream evaluation. Failed attempts
 may have no evidence when nothing auditable was obtained.
 
+## Evidence reference
+
+Immutable metadata for one separately persisted, atomic evidence item. It
+records task and step lineage, evidence kind, producer identity, an opaque
+storage reference, media type, SHA-256 digest, byte size, redaction status, and
+UTC recording time. It never embeds the evidence content or storage credentials.
+
+Execution attempts may produce target request, response, partial-response, or
+execution-error evidence. Evaluations may produce input snapshots, judgments,
+or evaluation-error evidence. A reference is created only after its content has
+been redacted as required and stored successfully. Authentication secrets must
+never be persisted as evidence, including restricted raw evidence.
+
+TaskRunner and the evidence store enforce cross-record constraints. A successful
+execution must reference both request and response evidence; a completed
+evaluation must reference its actual input and at least one judgment item. The
+reference model itself validates metadata but does not resolve other records or
+read the evidence store.
+
 ## Evaluation result
 
 One immutable evaluation record for a step's target response. It identifies
