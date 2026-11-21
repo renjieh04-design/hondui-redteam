@@ -149,6 +149,18 @@ def test_successful_attempt_cannot_contain_error_or_partial_response() -> None:
         ExecutionAttempt.model_validate(data)
 
 
+def test_successful_attempt_requires_evidence_for_downstream_evaluation() -> None:
+    data = _successful_attempt(
+        attempt_no=1,
+        attempt_id="attempt-001",
+        started_at=NOW,
+    )
+    data["evidence_refs"] = []
+
+    with pytest.raises(ValidationError, match="requires evidence references"):
+        ExecutionAttempt.model_validate(data)
+
+
 def test_attempt_time_must_be_utc_and_http_status_must_be_valid() -> None:
     data = _failed_attempt()
     data["started_at"] = datetime(2026, 11, 22, 10, 0)

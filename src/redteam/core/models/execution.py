@@ -1,4 +1,4 @@
-"""Results of executing one attack decision against the target model API."""
+"""Results of executing one test step against the target model API."""
 
 from datetime import datetime, timedelta
 from enum import StrEnum
@@ -8,19 +8,14 @@ from pydantic import (
     Field,
     NonNegativeInt,
     PositiveInt,
-    StringConstraints,
     computed_field,
     field_validator,
     model_validator,
 )
 
-from redteam.core.models.task import DomainModel, NonEmptyStr
+from redteam.core.models.common import DomainModel, ErrorMessage, NonEmptyStr
 
 
-ErrorMessage = Annotated[
-    str,
-    StringConstraints(strip_whitespace=True, min_length=1, max_length=500),
-]
 HttpStatusCode = Annotated[int, Field(ge=100, le=599)]
 
 
@@ -87,6 +82,8 @@ class ExecutionAttempt(DomainModel):
         if self.status is ExecutionStatus.SUCCESS:
             if self.response_text is None:
                 raise ValueError("a successful attempt requires response_text")
+            if not self.evidence_refs:
+                raise ValueError("a successful attempt requires evidence references")
             if self.partial_response_text is not None:
                 raise ValueError(
                     "a successful attempt cannot contain partial_response_text"

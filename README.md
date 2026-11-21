@@ -26,6 +26,10 @@ uv run redteam --help
 uv run redteam version
 ```
 
+## 配置迁移
+
+破坏性配置变更及迁移示例见 [MIGRATIONS.md](MIGRATIONS.md)。
+
 ## 目录职责
 
 ```text
@@ -40,4 +44,3 @@ tests/unit/                单元测试
 tests/contract/            模块接口契约测试
 tests/integration/         端到端集成测试
 ```
-

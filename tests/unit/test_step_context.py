@@ -44,7 +44,7 @@ def _history_entry(
     step_id: str,
     round_index: int,
     strategy_id: str = "direct",
-    attack_succeeded: bool = False,
+    attack_succeeded: bool | None = False,
 ) -> dict[str, object]:
     return {
         "step_id": step_id,
@@ -178,4 +178,33 @@ def test_feedback_score_must_be_normalized() -> None:
     data.update(step_id="step-002", round_index=2, history=[entry])
 
     with pytest.raises(ValidationError, match="less than or equal to 1"):
+        StepContext.model_validate(data)
+
+
+def test_inconclusive_feedback_can_be_used_in_the_next_round() -> None:
+    data = _context_data()
+    data.update(
+        step_id="step-002",
+        round_index=2,
+        history=[
+            _history_entry(
+                step_id="step-001",
+                round_index=1,
+                attack_succeeded=None,
+            )
+        ],
+    )
+
+    context = StepContext.model_validate(data)
+
+    assert context.history[0].evaluation_feedback.attack_succeeded is None
+
+
+def test_feedback_requires_an_explicit_three_state_outcome() -> None:
+    data = _context_data()
+    entry = _history_entry(step_id="step-001", round_index=1)
+    del entry["evaluation_feedback"]["attack_succeeded"]  # type: ignore[index]
+    data.update(step_id="step-002", round_index=2, history=[entry])
+
+    with pytest.raises(ValidationError, match="Field required"):
         StepContext.model_validate(data)

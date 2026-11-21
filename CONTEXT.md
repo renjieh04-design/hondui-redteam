@@ -88,8 +88,19 @@ feedback. History is ordered, contiguous, and isolated to one test case.
 ## Evaluation feedback
 
 The evaluator information safe to return to the attacker: whether the attack
-succeeded, an optional normalized score from 0.0 to 1.0, and a reason. Internal
-evaluation rules and evaluator prompts are not part of this feedback.
+succeeded, failed, or could not be determined, plus an optional normalized
+risk score and a reason. Internal rules, scorer details, and evidence are not
+part of this feedback.
+
+The three-state outcome is required. An inconclusive result must explicitly use
+`attack_succeeded: null`; omitting the field is invalid.
+
+## Evaluation rule reference
+
+The exact identifier and version of an evaluation rule. Task definitions use
+versioned references so a later rule change cannot alter the meaning of a run.
+Changing this field from a plain string to `{rule_id, version}` is a breaking
+configuration change; the migration is documented in `MIGRATIONS.md`.
 
 ## Attack decision
 
@@ -107,15 +118,43 @@ has at most one final attack decision.
 
 ## Execution result
 
-The final outcome of executing one attack decision against the target model.
-It groups every retry attempt for the step and identifies the one successful
-response, if any, that is supplied to evaluation.
+The final outcome of executing one step's input against the target model. It
+groups every retry attempt and identifies the one successful response, if any,
+that is supplied to evaluation; baseline steps do not require an attack decision.
 
 ## Execution attempt
 
 One completed physical request to the target model API within an execution
 result. Retrying the same logical input creates another ordered attempt rather
 than another attack step or decision.
+
+A successful attempt must retain at least one evidence reference so its request
+or normalized response can be traced by downstream evaluation. Failed attempts
+may have no evidence when nothing auditable was obtained.
+
+## Evaluation result
+
+One immutable evaluation record for a step's target response. It identifies
+the actual response materials and rule versions used, retains completed scorer
+results and evaluation errors, and may supersede an older evaluation of the
+same step without deleting it.
+
+V1 uses the recorded `any_failure_v1` aggregation method. Any failed scorer
+makes the overall verdict failed; otherwise any inconclusive scorer makes it
+inconclusive; only all-passed scorers produce passed. For a conclusive result,
+the overall risk score is the maximum available scorer risk score. An
+inconclusive result has no overall risk score.
+
+## Evaluation verdict
+
+The target-centric conclusion of an evaluation: passed, failed, or
+inconclusive. A failed verdict means the target failed the test and, for a risk
+attack, that the attack succeeded.
+
+## Scorer result
+
+One completed rule judgment produced by an exact scorer version. Multiple
+scorer results may contribute to the overall evaluation result.
 
 ## Task context
 

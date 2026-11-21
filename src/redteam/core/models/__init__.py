@@ -15,6 +15,16 @@ from redteam.core.models.context import (
     TestItemStatus,
 )
 from redteam.core.models.decision import AttackDecision
+from redteam.core.models.evaluation import (
+    EvaluationAggregationMethod,
+    EvaluationError,
+    EvaluationErrorType,
+    EvaluationResult,
+    EvaluationStatus,
+    EvaluationVerdict,
+    ScorerMethodOrigin,
+    ScorerResult,
+)
 from redteam.core.models.execution import (
     ExecutionAttempt,
     ExecutionError,
@@ -35,6 +45,7 @@ from redteam.core.models.task import (
     CaseSources,
     DatasetReference,
     DatasetSampleConfig,
+    EvaluationRuleReference,
     GenerationConfig,
     ModelConfig,
     RiskTestSpec,
@@ -53,6 +64,13 @@ __all__ = [
     "DatasetReference",
     "DatasetSampleConfig",
     "EvaluationFeedback",
+    "EvaluationAggregationMethod",
+    "EvaluationError",
+    "EvaluationErrorType",
+    "EvaluationResult",
+    "EvaluationRuleReference",
+    "EvaluationStatus",
+    "EvaluationVerdict",
     "ExecutionAttempt",
     "ExecutionError",
     "ExecutionErrorType",
@@ -63,6 +81,8 @@ __all__ = [
     "ModelConfig",
     "RiskTestSpec",
     "RiskObjective",
+    "ScorerMethodOrigin",
+    "ScorerResult",
     "StepContext",
     "StepHistoryEntry",
     "TestCase",

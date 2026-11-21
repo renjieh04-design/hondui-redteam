@@ -1,13 +1,17 @@
 """Attacker-facing context for one risk-attack step."""
 
-from typing import Annotated, Self
+from typing import Self
 
 from pydantic import Field, PositiveInt, model_validator
 
-from redteam.core.models.task import DomainModel, NonEmptyStr
+from redteam.core.models.common import (
+    DomainModel,
+    NonEmptyStr,
+    NormalizedRiskScore,
+)
 
-
-NormalizedScore = Annotated[float, Field(ge=0.0, le=1.0)]
+# Backward-compatible name for callers that imported the original step type.
+NormalizedScore = NormalizedRiskScore
 
 
 class TargetProfile(DomainModel):
@@ -38,8 +42,11 @@ class AvailableStrategy(DomainModel):
 class EvaluationFeedback(DomainModel):
     """The evaluator output that is safe for the attacker to consume."""
 
-    attack_succeeded: bool
-    score: NormalizedScore | None = None
+    attack_succeeded: bool | None
+    score: NormalizedScore | None = Field(
+        default=None,
+        description="Normalized risk from 0 (no detected risk) to 1 (highest risk).",
+    )
     reason: NonEmptyStr
 
 
@@ -106,7 +113,10 @@ class StepContext(DomainModel):
                 "history strategy IDs must refer to available_strategies"
             )
 
-        if any(entry.evaluation_feedback.attack_succeeded for entry in self.history):
+        if any(
+            entry.evaluation_feedback.attack_succeeded is True
+            for entry in self.history
+        ):
             raise ValueError("a successful attack must terminate the test case")
 
         return self
