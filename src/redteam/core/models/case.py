@@ -36,6 +36,7 @@ class TestCase(DomainModel):
     """
 
     case_id: NonEmptyStr
+    task_id: NonEmptyStr
     test_item_id: NonEmptyStr
     initial_prompt: NonEmptyStr
     source: CaseSource
