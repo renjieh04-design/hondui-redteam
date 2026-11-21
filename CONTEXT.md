@@ -31,3 +31,15 @@ choices, not an instruction to execute every strategy or strategy combination.
 The independent sequence started from one initial case. Each process may run up
 to the risk test item's configured maximum number of rounds.
 
+## Task context
+
+The task-level snapshot maintained by TaskRunner for one task run. It records
+the overall state, current execution position, progress of every test item, and
+the task-level termination reason. Detailed steps, decisions, responses, and
+evaluations are separate records.
+
+## Test item progress
+
+The task-level progress summary for one test item. It records how many cases
+exist, how many have finished processing, and how many ended with technical
+errors; it does not contain individual case outcomes.
