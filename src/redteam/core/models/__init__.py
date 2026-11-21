@@ -15,6 +15,13 @@ from redteam.core.models.context import (
     TestItemStatus,
 )
 from redteam.core.models.decision import AttackDecision
+from redteam.core.models.execution import (
+    ExecutionAttempt,
+    ExecutionError,
+    ExecutionErrorType,
+    ExecutionResult,
+    ExecutionStatus,
+)
 from redteam.core.models.step import (
     AvailableStrategy,
     EvaluationFeedback,
@@ -46,6 +53,11 @@ __all__ = [
     "DatasetReference",
     "DatasetSampleConfig",
     "EvaluationFeedback",
+    "ExecutionAttempt",
+    "ExecutionError",
+    "ExecutionErrorType",
+    "ExecutionResult",
+    "ExecutionStatus",
     "GenerationConfig",
     "GeneratedCaseSource",
     "ModelConfig",

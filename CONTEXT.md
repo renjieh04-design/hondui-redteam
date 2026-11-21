@@ -105,6 +105,18 @@ input step context and that its selected strategy was available for that step.
 TaskRunner or the persistence layer also guarantees that one step identifier
 has at most one final attack decision.
 
+## Execution result
+
+The final outcome of executing one attack decision against the target model.
+It groups every retry attempt for the step and identifies the one successful
+response, if any, that is supplied to evaluation.
+
+## Execution attempt
+
+One completed physical request to the target model API within an execution
+result. Retrying the same logical input creates another ordered attempt rather
+than another attack step or decision.
+
 ## Task context
 
 The task-level snapshot maintained by TaskRunner for one task run. It records
