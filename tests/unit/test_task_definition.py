@@ -6,6 +6,10 @@ from pydantic import ValidationError
 from redteam.core.models import TaskDefinition
 
 
+def _rule(rule_id: str, version: str = "1.0") -> dict[str, str]:
+    return {"rule_id": rule_id, "version": version}
+
+
 def _target() -> dict[str, str]:
     return {
         "name": "customer-service-assistant",
@@ -37,7 +41,7 @@ def test_combines_baseline_and_risk_test_items() -> None:
                     "item_id": "baseline-1",
                     "kind": "baseline",
                     "dataset": {"dataset_id": "open-benchmark", "version": "1.0"},
-                    "evaluation_rule_refs": ["exact-answer"],
+                    "evaluation_rule_refs": [_rule("exact-answer")],
                 },
                 {
                     "item_id": "privacy-orders",
@@ -58,7 +62,10 @@ def test_combines_baseline_and_risk_test_items() -> None:
                     },
                     "strategy_refs": ["direct", "role_play"],
                     "max_rounds": 5,
-                    "evaluation_rule_refs": ["secret-match", "semantic-judge"],
+                    "evaluation_rule_refs": [
+                        _rule("secret-match", "2.0"),
+                        _rule("semantic-judge", "3.1"),
+                    ],
                 },
             ],
         }
@@ -67,6 +74,7 @@ def test_combines_baseline_and_risk_test_items() -> None:
     assert len(task.test_items) == 2
     assert task.test_items[1].max_rounds == 5
     assert task.test_items[1].sources.generated.count == 10
+    assert task.test_items[1].evaluation_rule_refs[1].version == "3.1"
 
 
 def test_risk_test_requires_at_least_one_case_source() -> None:
@@ -83,7 +91,7 @@ def test_risk_test_requires_at_least_one_case_source() -> None:
                         "risk_id": "privacy_leakage",
                         "sources": {},
                         "strategy_refs": ["direct"],
-                        "evaluation_rule_refs": ["semantic-judge"],
+                        "evaluation_rule_refs": [_rule("semantic-judge")],
                     }
                 ],
             }
@@ -104,7 +112,7 @@ def test_model_generated_cases_require_attacker_model() -> None:
                         "risk_id": "privacy_leakage",
                         "sources": {"generated": {"count": 5}},
                         "strategy_refs": ["direct"],
-                        "evaluation_rule_refs": ["semantic-judge"],
+                        "evaluation_rule_refs": [_rule("semantic-judge")],
                     }
                 ],
             }
@@ -123,13 +131,13 @@ def test_test_item_ids_are_unique_within_task() -> None:
                         "item_id": "duplicate",
                         "kind": "baseline",
                         "dataset": {"dataset_id": "set-a", "version": "1"},
-                        "evaluation_rule_refs": ["rule-a"],
+                        "evaluation_rule_refs": [_rule("rule-a")],
                     },
                     {
                         "item_id": "duplicate",
                         "kind": "baseline",
                         "dataset": {"dataset_id": "set-b", "version": "1"},
-                        "evaluation_rule_refs": ["rule-b"],
+                        "evaluation_rule_refs": [_rule("rule-b")],
                     },
                 ],
             }
@@ -148,7 +156,116 @@ def test_public_models_reject_unknown_fields() -> None:
                         "item_id": "baseline-1",
                         "kind": "baseline",
                         "dataset": {"dataset_id": "set-a", "version": "1"},
+                        "evaluation_rule_refs": [_rule("rule-a")],
+                    }
+                ],
+            }
+        )
+
+
+def test_evaluation_rule_versions_must_be_explicit_and_unique() -> None:
+    with pytest.raises(ValidationError, match="evaluation rule references must be unique"):
+        TaskDefinition.model_validate(
+            {
+                "task_id": "run-006",
+                "name": "Duplicate evaluation rules",
+                "target": _target(),
+                "test_items": [
+                    {
+                        "item_id": "baseline-1",
+                        "kind": "baseline",
+                        "dataset": {"dataset_id": "set-a", "version": "1"},
+                        "evaluation_rule_refs": [
+                            _rule("rule-a", "1.0"),
+                            _rule("rule-a", "1.0"),
+                        ],
+                    }
+                ],
+            }
+        )
+
+
+def test_baseline_case_ids_must_be_unique() -> None:
+    with pytest.raises(ValidationError, match="baseline case IDs must be unique"):
+        TaskDefinition.model_validate(
+            {
+                "task_id": "run-006",
+                "name": "Duplicate baseline case IDs",
+                "target": _target(),
+                "test_items": [
+                    {
+                        "item_id": "baseline-1",
+                        "kind": "baseline",
+                        "dataset": {"dataset_id": "set-a", "version": "1"},
+                        "case_ids": ["case-a", "case-a"],
+                        "evaluation_rule_refs": [_rule("rule-a")],
+                    }
+                ],
+            }
+        )
+
+
+def test_risk_strategy_refs_must_be_unique() -> None:
+    with pytest.raises(
+        ValidationError,
+        match="risk attack strategy references must be unique",
+    ):
+        TaskDefinition.model_validate(
+            {
+                "task_id": "run-007",
+                "name": "Duplicate strategy references",
+                "target": _target(),
+                "test_items": [
+                    {
+                        "item_id": "risk-1",
+                        "kind": "risk_attack",
+                        "risk_id": "risk-a",
+                        "sources": {
+                            "datasets": [
+                                {
+                                    "dataset": {"dataset_id": "set-a", "version": "1"},
+                                    "count": 1,
+                                }
+                            ]
+                        },
+                        "strategy_refs": ["direct", "direct"],
+                        "evaluation_rule_refs": [_rule("rule-a")],
+                    }
+                ],
+            }
+        )
+
+
+def test_legacy_string_evaluation_rule_reference_requires_migration() -> None:
+    with pytest.raises(ValidationError):
+        TaskDefinition.model_validate(
+            {
+                "task_id": "run-legacy",
+                "name": "Legacy rule reference",
+                "target": _target(),
+                "test_items": [
+                    {
+                        "item_id": "baseline-1",
+                        "kind": "baseline",
+                        "dataset": {"dataset_id": "set-a", "version": "1"},
                         "evaluation_rule_refs": ["rule-a"],
+                    }
+                ],
+            }
+        )
+
+    with pytest.raises(ValidationError, match="version must be resolved"):
+        TaskDefinition.model_validate(
+            {
+                "task_id": "run-007",
+                "name": "Unresolved evaluation rule",
+                "target": _target(),
+                "test_items": [
+                    {
+                        "item_id": "baseline-1",
+                        "kind": "baseline",
+                        "dataset": {"dataset_id": "set-a", "version": "1"},
+                        "evaluation_rule_refs": [_rule("rule-a", "latest")],
                     }
                 ],
             }

@@ -3,26 +3,14 @@
 from typing import Annotated, Literal, Self
 
 from pydantic import (
-    BaseModel,
-    ConfigDict,
     Field,
     PositiveInt,
-    StringConstraints,
+    field_validator,
     model_validator,
 )
 
-# 去掉首尾空白后至少 1 个字符，用于拒绝空的配置项
-NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-
-
-class DomainModel(BaseModel):
-    """V1 公共领域模型的统一校验策略。
-
-    - extra="forbid"：禁止未声明字段，避免 YAML 中字段名拼错后被静默忽略
-    - frozen=True：创建后不可修改，保证任务定义在执行过程中不被篡改
-    """
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
+from redteam.core.models.common import DomainModel, NonEmptyStr
+from redteam.core.models.retry import RetryPolicy
 
 
 class ModelConfig(DomainModel):
@@ -66,6 +54,28 @@ class DatasetReference(DomainModel):
     version: NonEmptyStr
 
 
+class EvaluationRuleReference(DomainModel):
+    """An exact, reproducible version of an evaluation rule."""
+
+    rule_id: NonEmptyStr
+    version: NonEmptyStr
+
+    @field_validator("version")
+    @classmethod
+    def require_resolved_version(cls, value: str) -> str:
+        if value.casefold() == "latest" or value == "*":
+            raise ValueError("evaluation rule version must be resolved")
+        return value
+
+
+def _require_unique_evaluation_rule_refs(
+    refs: tuple[EvaluationRuleReference, ...],
+) -> None:
+    keys = [(ref.rule_id, ref.version) for ref in refs]
+    if len(keys) != len(set(keys)):
+        raise ValueError("evaluation rule references must be unique")
+
+
 class DatasetSampleConfig(DomainModel):
     """从某个已导入数据集中随机抽取 count 条用例。"""
 
@@ -102,9 +112,17 @@ class BaselineTestSpec(DomainModel):
     # 为 None 表示使用数据集内的全部用例
     case_ids: tuple[NonEmptyStr, ...] | None = Field(
         default=None,
+        min_length=1,
         description="Selected case IDs; null means all cases in the dataset.",
     )
-    evaluation_rule_refs: tuple[NonEmptyStr, ...] = Field(min_length=1)
+    evaluation_rule_refs: tuple[EvaluationRuleReference, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_baseline_relationships(self) -> Self:
+        if self.case_ids is not None and len(self.case_ids) != len(set(self.case_ids)):
+            raise ValueError("baseline case IDs must be unique")
+        _require_unique_evaluation_rule_refs(self.evaluation_rule_refs)
+        return self
 
 
 class RiskTestSpec(DomainModel):
@@ -121,7 +139,15 @@ class RiskTestSpec(DomainModel):
         description="Strategies available to the attacker as a choice pool.",
     )
     max_rounds: PositiveInt = 1
-    evaluation_rule_refs: tuple[NonEmptyStr, ...] = Field(min_length=1)
+    evaluation_rule_refs: tuple[EvaluationRuleReference, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_risk_relationships(self) -> Self:
+        strategy_ids = [strategy_id for strategy_id in self.strategy_refs]
+        if len(strategy_ids) != len(set(strategy_ids)):
+            raise ValueError("risk attack strategy references must be unique")
+        _require_unique_evaluation_rule_refs(self.evaluation_rule_refs)
+        return self
 
 
 # 判别式联合：按 kind 字段自动路由到 BaselineTestSpec 或 RiskTestSpec
@@ -139,6 +165,7 @@ class TaskDefinition(DomainModel):
     target: TargetConfig
     attacker_model: ModelConfig | None = None
     judge_model: ModelConfig | None = None
+    retry_policy: RetryPolicy = Field(default_factory=RetryPolicy)
     test_items: tuple[TestItem, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
