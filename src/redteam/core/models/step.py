@@ -44,7 +44,7 @@ class EvaluationFeedback(DomainModel):
 
 
 class StepHistoryEntry(DomainModel):
-    """One fully executed and evaluated prior round in the current case."""
+    """Prior round record. This model does not redact text or verify provenance."""
 
     step_id: NonEmptyStr
     round_index: PositiveInt
