@@ -206,3 +206,50 @@ evaluations are separate records.
 The task-level progress summary for one test item. It records how many cases
 exist, how many have finished processing, and how many ended with technical
 errors; it does not contain individual case outcomes.
+
+## Prepared test item
+
+A test item whose cases, evaluation rules, and any risk objective and attack
+strategies have been fully resolved before execution. It contains no raw file
+references that TaskRunner must interpret.
+
+## Resolved evaluation rule
+
+One exact evaluation rule version bound to one concrete scorer version and its
+validated parameters. It is the executable form of an evaluation rule reference.
+
+## Target conversation
+
+The complete provider-independent message sequence sent to a stateless target
+model API for one call. Earlier user and assistant turns are included only when
+the current test case intentionally continues the same conversation.
+
+## Target execution request
+
+The immutable lineage, target configuration, and target conversation for one
+logical target call. Retries reuse the same request and do not create new steps.
+
+## Evaluation request
+
+The exact successful execution, conversation, evidence, and resolved rules used
+to form one evaluation result.
+
+## Scoring request
+
+The subset of an evaluation request supplied to one scorer for one resolved
+evaluation rule.
+
+## Evidence write request
+
+One redacted evidence payload with complete task and producer lineage before it
+has been stored. Successful storage turns it into an evidence reference.
+
+## Report artifact
+
+The integrity metadata and local path of one successfully exported task report
+in one V1 format.
+
+## Task run records
+
+The complete typed read model of one task run: its immutable definition, latest
+task context, detailed execution records, evaluations, and evidence references.

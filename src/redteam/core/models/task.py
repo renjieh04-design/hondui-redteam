@@ -112,12 +112,15 @@ class BaselineTestSpec(DomainModel):
     # 为 None 表示使用数据集内的全部用例
     case_ids: tuple[NonEmptyStr, ...] | None = Field(
         default=None,
+        min_length=1,
         description="Selected case IDs; null means all cases in the dataset.",
     )
     evaluation_rule_refs: tuple[EvaluationRuleReference, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_evaluation_rule_refs(self) -> Self:
+    def validate_baseline_relationships(self) -> Self:
+        if self.case_ids is not None and len(self.case_ids) != len(set(self.case_ids)):
+            raise ValueError("baseline case IDs must be unique")
         _require_unique_evaluation_rule_refs(self.evaluation_rule_refs)
         return self
 
@@ -139,7 +142,10 @@ class RiskTestSpec(DomainModel):
     evaluation_rule_refs: tuple[EvaluationRuleReference, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_evaluation_rule_refs(self) -> Self:
+    def validate_risk_relationships(self) -> Self:
+        strategy_ids = [strategy_id for strategy_id in self.strategy_refs]
+        if len(strategy_ids) != len(set(strategy_ids)):
+            raise ValueError("risk attack strategy references must be unique")
         _require_unique_evaluation_rule_refs(self.evaluation_rule_refs)
         return self
 

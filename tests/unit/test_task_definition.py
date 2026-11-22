@@ -185,6 +185,57 @@ def test_evaluation_rule_versions_must_be_explicit_and_unique() -> None:
         )
 
 
+def test_baseline_case_ids_must_be_unique() -> None:
+    with pytest.raises(ValidationError, match="baseline case IDs must be unique"):
+        TaskDefinition.model_validate(
+            {
+                "task_id": "run-006",
+                "name": "Duplicate baseline case IDs",
+                "target": _target(),
+                "test_items": [
+                    {
+                        "item_id": "baseline-1",
+                        "kind": "baseline",
+                        "dataset": {"dataset_id": "set-a", "version": "1"},
+                        "case_ids": ["case-a", "case-a"],
+                        "evaluation_rule_refs": [_rule("rule-a")],
+                    }
+                ],
+            }
+        )
+
+
+def test_risk_strategy_refs_must_be_unique() -> None:
+    with pytest.raises(
+        ValidationError,
+        match="risk attack strategy references must be unique",
+    ):
+        TaskDefinition.model_validate(
+            {
+                "task_id": "run-007",
+                "name": "Duplicate strategy references",
+                "target": _target(),
+                "test_items": [
+                    {
+                        "item_id": "risk-1",
+                        "kind": "risk_attack",
+                        "risk_id": "risk-a",
+                        "sources": {
+                            "datasets": [
+                                {
+                                    "dataset": {"dataset_id": "set-a", "version": "1"},
+                                    "count": 1,
+                                }
+                            ]
+                        },
+                        "strategy_refs": ["direct", "direct"],
+                        "evaluation_rule_refs": [_rule("rule-a")],
+                    }
+                ],
+            }
+        )
+
+
 def test_legacy_string_evaluation_rule_reference_requires_migration() -> None:
     with pytest.raises(ValidationError):
         TaskDefinition.model_validate(

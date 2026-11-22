@@ -4,7 +4,13 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Annotated, Self
 
-from pydantic import PositiveInt, StringConstraints, field_validator, model_validator
+from pydantic import (
+    Field,
+    PositiveInt,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from redteam.core.models.common import DomainModel, NonEmptyStr
 
@@ -47,6 +53,53 @@ class EvidenceRedactionStatus(StrEnum):
     RAW_RESTRICTED = "raw_restricted"
 
 
+def _validate_producer_kind(
+    producer_type: EvidenceProducerType,
+    kind: EvidenceKind,
+) -> None:
+    execution_kinds = {
+        EvidenceKind.TARGET_REQUEST,
+        EvidenceKind.TARGET_RESPONSE,
+        EvidenceKind.TARGET_PARTIAL_RESPONSE,
+        EvidenceKind.EXECUTION_ERROR,
+    }
+    evaluation_kinds = {
+        EvidenceKind.EVALUATION_INPUT,
+        EvidenceKind.EVALUATION_JUDGMENT,
+        EvidenceKind.EVALUATION_ERROR,
+    }
+    allowed_kinds = (
+        execution_kinds
+        if producer_type is EvidenceProducerType.EXECUTION_ATTEMPT
+        else evaluation_kinds
+    )
+    if kind not in allowed_kinds:
+        raise ValueError("evidence kind must match its producer type")
+
+
+class EvidenceWriteRequest(DomainModel):
+    """Redacted evidence content and lineage supplied to EvidenceStore."""
+
+    task_id: NonEmptyStr
+    test_item_id: NonEmptyStr
+    case_id: NonEmptyStr
+    step_id: NonEmptyStr
+    round_index: PositiveInt
+
+    kind: EvidenceKind
+    producer_type: EvidenceProducerType
+    producer_id: NonEmptyStr
+
+    content: bytes = Field(min_length=1)
+    media_type: NonEmptyStr
+    redaction_status: EvidenceRedactionStatus
+
+    @model_validator(mode="after")
+    def validate_producer_kind(self) -> Self:
+        _validate_producer_kind(self.producer_type, self.kind)
+        return self
+
+
 class EvidenceReference(DomainModel):
     """Metadata and integrity information for one separately stored evidence item."""
 
@@ -77,24 +130,5 @@ class EvidenceReference(DomainModel):
 
     @model_validator(mode="after")
     def validate_producer_kind(self) -> Self:
-        execution_kinds = {
-            EvidenceKind.TARGET_REQUEST,
-            EvidenceKind.TARGET_RESPONSE,
-            EvidenceKind.TARGET_PARTIAL_RESPONSE,
-            EvidenceKind.EXECUTION_ERROR,
-        }
-        evaluation_kinds = {
-            EvidenceKind.EVALUATION_INPUT,
-            EvidenceKind.EVALUATION_JUDGMENT,
-            EvidenceKind.EVALUATION_ERROR,
-        }
-
-        allowed_kinds = (
-            execution_kinds
-            if self.producer_type is EvidenceProducerType.EXECUTION_ATTEMPT
-            else evaluation_kinds
-        )
-        if self.kind not in allowed_kinds:
-            raise ValueError("evidence kind must match its producer type")
-
+        _validate_producer_kind(self.producer_type, self.kind)
         return self
