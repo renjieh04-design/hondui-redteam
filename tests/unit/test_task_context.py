@@ -136,3 +136,35 @@ def test_final_context_requires_finish_time_and_termination_reason() -> None:
     )
 
     assert context.status is TaskStatus.COMPLETED
+
+
+@pytest.mark.parametrize("item_status,errors,reason", [
+    (ItemStatus.PENDING, 0, TerminationReason.ALL_TEST_ITEMS_COMPLETED),
+    (ItemStatus.COMPLETED_WITH_ERRORS, 1, TerminationReason.ALL_TEST_ITEMS_COMPLETED),
+    (ItemStatus.COMPLETED, 0, TerminationReason.USER_CANCELLED),
+])
+def test_completed_task_rejects_inconsistent_progress(item_status, errors, reason):
+    progress = ItemProgress(
+        test_item_id="item", status=item_status, total_cases=1,
+        completed_cases=int(item_status is not ItemStatus.PENDING),
+        error_cases=errors,
+    )
+    with pytest.raises(ValidationError):
+        TaskContext(
+            task_id="task", status=TaskStatus.COMPLETED,
+            test_item_progress=(progress,), created_at=NOW,
+            updated_at=NOW, finished_at=NOW, termination_reason=reason,
+        )
+
+
+def test_context_requires_timezone_on_every_timestamp():
+    with pytest.raises(ValidationError, match="timezone"):
+        TaskContext(
+            task_id="task", test_item_progress=(ItemProgress(test_item_id="item"),),
+            created_at=NOW, updated_at=NOW.replace(tzinfo=None),
+        )
+
+
+def test_pending_test_item_rejects_processed_cases():
+    with pytest.raises(ValidationError, match="pending"):
+        ItemProgress(test_item_id="item", total_cases=2, completed_cases=1)

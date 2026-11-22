@@ -1,10 +1,9 @@
 """TaskRunner 维护的任务级运行上下文模型。"""
 
-from datetime import datetime
 from enum import StrEnum
 from typing import Self
 
-from pydantic import Field, NonNegativeInt, model_validator
+from pydantic import AwareDatetime, Field, NonNegativeInt, model_validator
 
 from redteam.core.models.task import DomainModel, NonEmptyStr
 
@@ -56,6 +55,9 @@ class TestItemProgress(DomainModel):
         if self.error_cases > self.completed_cases:
             raise ValueError("error_cases cannot exceed completed_cases")
 
+        if self.status is TestItemStatus.PENDING and self.completed_cases:
+            raise ValueError("a pending test item cannot contain completed cases")
+
         if self.status in {
             TestItemStatus.COMPLETED,
             TestItemStatus.COMPLETED_WITH_ERRORS,
@@ -94,10 +96,10 @@ class TaskContext(DomainModel):
 
     test_item_progress: tuple[TestItemProgress, ...] = Field(min_length=1)
 
-    created_at: datetime
-    started_at: datetime | None = None
-    updated_at: datetime
-    finished_at: datetime | None = None
+    created_at: AwareDatetime
+    started_at: AwareDatetime | None = None
+    updated_at: AwareDatetime
+    finished_at: AwareDatetime | None = None
 
     termination_reason: TerminationReason | None = None
     termination_detail: NonEmptyStr | None = None
@@ -136,6 +138,19 @@ class TaskContext(DomainModel):
             raise ValueError("a non-final task cannot have termination_reason")
         if self.termination_detail is not None and self.termination_reason is None:
             raise ValueError("termination_detail requires termination_reason")
+
+        if self.status in {TaskStatus.COMPLETED, TaskStatus.COMPLETED_WITH_ERRORS}:
+            if self.termination_reason is not TerminationReason.ALL_TEST_ITEMS_COMPLETED:
+                raise ValueError("a completed task requires all_test_items_completed")
+            item_statuses = {item.status for item in self.test_item_progress}
+            if not item_statuses <= {
+                TestItemStatus.COMPLETED,
+                TestItemStatus.COMPLETED_WITH_ERRORS,
+            }:
+                raise ValueError("a completed task requires every test item to be completed")
+            has_errors = TestItemStatus.COMPLETED_WITH_ERRORS in item_statuses
+            if has_errors != (self.status is TaskStatus.COMPLETED_WITH_ERRORS):
+                raise ValueError("task completion status must match test item errors")
 
         if self.updated_at < self.created_at:
             raise ValueError("updated_at cannot be earlier than created_at")
