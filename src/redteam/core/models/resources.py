@@ -117,6 +117,7 @@ class PreparedTestItem(DomainModel):
                 raise ValueError(
                     "a baseline test item cannot contain risk attack resources"
                 )
+            baseline_source_keys: list[tuple[str, str, str]] = []
             for case in self.cases:
                 if not isinstance(case.source, DatasetCaseSource):
                     raise ValueError("baseline cases must come from datasets")
@@ -129,6 +130,15 @@ class PreparedTestItem(DomainModel):
                     raise ValueError(
                         "baseline cases must come from the test item dataset"
                     )
+                baseline_source_keys.append(
+                    (
+                        case.source.dataset.dataset_id,
+                        case.source.dataset.version,
+                        case.source.source_case_id,
+                    )
+                )
+            if len(baseline_source_keys) != len(set(baseline_source_keys)):
+                raise ValueError("baseline source case IDs must be unique")
             if self.test_item.case_ids is not None:
                 prepared_case_ids = Counter(
                     case.source.source_case_id
@@ -157,6 +167,7 @@ class PreparedTestItem(DomainModel):
 
         actual_dataset_counts: Counter[tuple[str, str]] = Counter()
         actual_generated_count = 0
+        risk_source_keys: list[tuple[str, str, str]] = []
         for case in self.cases:
             if isinstance(case.source, DatasetCaseSource):
                 source_keys = {
@@ -173,6 +184,13 @@ class PreparedTestItem(DomainModel):
                     raise ValueError(
                         "prepared risk cases must come from declared datasets"
                     )
+                risk_source_keys.append(
+                    (
+                        case.source.dataset.dataset_id,
+                        case.source.dataset.version,
+                        case.source.source_case_id,
+                    )
+                )
                 actual_dataset_counts[
                     (
                         case.source.dataset.dataset_id,
@@ -185,6 +203,9 @@ class PreparedTestItem(DomainModel):
                         "prepared risk cases cannot be generated when generation is disabled"
                     )
                 actual_generated_count += 1
+
+        if len(risk_source_keys) != len(set(risk_source_keys)):
+            raise ValueError("risk dataset source case IDs must be unique")
 
         expected_dataset_counts: Counter[tuple[str, str]] = Counter()
         for sample in self.test_item.sources.datasets:

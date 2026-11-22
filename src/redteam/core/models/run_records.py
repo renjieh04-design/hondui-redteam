@@ -136,19 +136,35 @@ class TaskRunRecords(DomainModel):
                         )
 
         for test_item_id, test_item in test_items.items():
-            if isinstance(test_item, BaselineTestSpec) and test_item.case_ids is not None:
-                prepared_source_ids = Counter(
-                    case.source.source_case_id
+            if isinstance(test_item, BaselineTestSpec):
+                baseline_cases = [
+                    case
                     for case in self.test_cases
                     if case.test_item_id == test_item_id
-                )
-                if prepared_source_ids != Counter(test_item.case_ids):
-                    raise ValueError(
-                        "task run baseline cases must exactly match selected case_ids"
+                ]
+                baseline_source_keys = [
+                    (
+                        case.source.dataset.dataset_id,
+                        case.source.dataset.version,
+                        case.source.source_case_id,
                     )
+                    for case in baseline_cases
+                ]
+                if len(baseline_source_keys) != len(set(baseline_source_keys)):
+                    raise ValueError("baseline dataset source case IDs must be unique")
+                if test_item.case_ids is not None:
+                    prepared_source_ids = Counter(
+                        case.source.source_case_id
+                        for case in baseline_cases
+                    )
+                    if prepared_source_ids != Counter(test_item.case_ids):
+                        raise ValueError(
+                            "task run baseline cases must exactly match selected case_ids"
+                        )
             elif isinstance(test_item, RiskTestSpec):
                 actual_dataset_counts: Counter[tuple[str, str]] = Counter()
                 actual_generated_count = 0
+                risk_source_keys: list[tuple[str, str, str]] = []
                 for case in self.test_cases:
                     if case.test_item_id != test_item_id:
                         continue
@@ -159,8 +175,18 @@ class TaskRunRecords(DomainModel):
                                 case.source.dataset.version,
                             )
                         ] += 1
+                        risk_source_keys.append(
+                            (
+                                case.source.dataset.dataset_id,
+                                case.source.dataset.version,
+                                case.source.source_case_id,
+                            )
+                        )
                     elif case.source.kind == "generated":
                         actual_generated_count += 1
+
+                if len(risk_source_keys) != len(set(risk_source_keys)):
+                    raise ValueError("risk dataset source case IDs must be unique")
 
                 expected_dataset_counts: Counter[tuple[str, str]] = Counter()
                 for sample in test_item.sources.datasets:
@@ -571,6 +597,14 @@ class TaskRunRecords(DomainModel):
                     raise ValueError(
                         "evaluation evidence producer must own the exact evidence reference"
                     )
+
+        attempt_ids = [
+            attempt.attempt_id
+            for execution in self.execution_results
+            for attempt in execution.attempts
+        ]
+        if len(attempt_ids) != len(set(attempt_ids)):
+            raise ValueError("execution attempt IDs must be unique within a task run")
 
         unique_id_groups = (
             ("case IDs", [record.case_id for record in self.test_cases]),
