@@ -280,3 +280,16 @@ def test_models_reject_fields_outside_the_v1_contract() -> None:
 
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         ExecutionResult.model_validate(data)
+
+
+def test_successful_response_can_record_evidence_persistence_failure():
+    record = _result_data()
+    attempt = record["attempts"][-1]
+    attempt["evidence_refs"] = []
+    attempt["evidence_persistence_error"] = "Evidence store unavailable"
+    result = ExecutionResult.model_validate(record)
+
+    assert result.status is ExecutionStatus.SUCCESS
+    assert result.final_response_text == attempt["response_text"]
+    saved = ExecutionResult.model_validate_json(result.model_dump_json(round_trip=True))
+    assert saved.attempts[-1].evidence_persistence_error == "Evidence store unavailable"

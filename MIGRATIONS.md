@@ -23,3 +23,12 @@ evaluation_rule_refs:
 
 The version must be resolved before `TaskDefinition` is built. `latest` and `*`
 are not valid stored versions.
+
+## Assessment and evidence records
+
+When a response was received but archiving failed, record the call as
+successful and put a redacted description in `evidence_persistence_error`.
+Any evidence references on that record identify only materials already saved.
+Reports must treat such records as incomplete evidence.
+
+A passed evaluation requires a scorer result for every declared rule and version.

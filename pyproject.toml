@@ -7,7 +7,7 @@ name = "hondui-redteam"
 dynamic = ["version"]
 description = "An automated red-team testing framework for LLM applications."
 readme = "README.md"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "alembic>=1.14",
     "httpx>=0.28",

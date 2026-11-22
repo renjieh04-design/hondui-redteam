@@ -4,7 +4,7 @@
 
 ## 环境要求
 
-- CPython 3.12
+- CPython 3.12 或 3.13
 - [uv](https://docs.astral.sh/uv/)
 
 ## 初始化

@@ -62,6 +62,7 @@ class ExecutionAttempt(DomainModel):
 
     # These are identifiers of separately stored EvidenceReference records.
     evidence_refs: tuple[NonEmptyStr, ...] = ()
+    evidence_persistence_error: ErrorMessage | None = None
 
     started_at: datetime
     duration_ms: NonNegativeInt
@@ -83,7 +84,7 @@ class ExecutionAttempt(DomainModel):
         if self.status is ExecutionStatus.SUCCESS:
             if self.response_text is None:
                 raise ValueError("a successful attempt requires response_text")
-            if not self.evidence_refs:
+            if not self.evidence_refs and self.evidence_persistence_error is None:
                 raise ValueError("a successful attempt requires evidence references")
             if self.partial_response_text is not None:
                 raise ValueError(

@@ -309,3 +309,15 @@ def test_models_reject_fields_outside_the_v1_contract() -> None:
 
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         EvaluationResult.model_validate(data)
+
+
+def test_passed_evaluation_rejects_a_missing_rule_result():
+    record = _completed_result()
+    record.update(
+        evaluation_rule_refs=[_rule(), _rule("second-rule")],
+        verdict="passed",
+        risk_score=0.0,
+        scorer_results=[_scorer_result(verdict="passed", risk_score=0.0)],
+    )
+    with pytest.raises(ValidationError, match="a result for every rule"):
+        EvaluationResult.model_validate(record)

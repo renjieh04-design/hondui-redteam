@@ -205,6 +205,11 @@ class EvaluationResult(DomainModel):
                 raise ValueError(
                     "a completed evaluation requires at least one scorer result"
                 )
+            if self.verdict is EvaluationVerdict.PASSED and {
+                (result.rule_ref.rule_id, result.rule_ref.version)
+                for result in self.scorer_results
+            } != allowed_rule_keys:
+                raise ValueError("a passed evaluation requires a result for every rule")
             if not self.input_evidence_refs:
                 raise ValueError(
                     "a completed evaluation requires input evidence references"
