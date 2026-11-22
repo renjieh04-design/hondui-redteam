@@ -361,6 +361,17 @@ class TaskRunRecords(DomainModel):
                 raise ValueError(
                     "evaluation must include the selected execution attempt"
                 )
+            selected_attempt = next(
+                attempt
+                for attempt in execution.attempts
+                if attempt.attempt_id == execution.selected_attempt_id
+            )
+            if not set(evaluation.input_evidence_refs).issubset(
+                set(selected_attempt.evidence_refs)
+            ):
+                raise ValueError(
+                    "evaluation input evidence must come from the selected execution attempt"
+                )
 
             test_item = test_items.get(evaluation.test_item_id)
             if test_item is None:
@@ -410,6 +421,25 @@ class TaskRunRecords(DomainModel):
                 raise ValueError(
                     "superseded evaluation must have matching lineage"
                 )
+            if evaluation.evaluated_at <= previous.evaluated_at:
+                raise ValueError(
+                    "a superseding evaluation must be evaluated later"
+                )
+
+        for evaluation in self.evaluation_results:
+            seen_evaluation_ids = {evaluation.evaluation_id}
+            current_evaluation = evaluation
+            while current_evaluation.supersedes_evaluation_id is not None:
+                predecessor_id = current_evaluation.supersedes_evaluation_id
+                if predecessor_id in seen_evaluation_ids:
+                    raise ValueError(
+                        "evaluation supersession chain cannot contain a cycle"
+                    )
+                seen_evaluation_ids.add(predecessor_id)
+                predecessor = evaluation_by_id.get(predecessor_id)
+                if predecessor is None:
+                    break
+                current_evaluation = predecessor
 
         evidence_ids = {
             evidence.evidence_id
@@ -428,6 +458,20 @@ class TaskRunRecords(DomainModel):
                     raise ValueError(
                         "execution attempt evidence references must exist in task run records"
                     )
+                for evidence_id in attempt.evidence_refs:
+                    evidence = evidence_by_id[evidence_id]
+                    if (
+                        evidence.producer_type.value != "execution_attempt"
+                        or evidence.producer_id != attempt.attempt_id
+                        or evidence.task_id != result.task_id
+                        or evidence.test_item_id != result.test_item_id
+                        or evidence.case_id != result.case_id
+                        or evidence.step_id != result.step_id
+                        or evidence.round_index != result.round_index
+                    ):
+                        raise ValueError(
+                            "execution evidence must be owned by the exact execution attempt"
+                        )
                 if attempt.status is ExecutionStatus.SUCCESS:
                     attempt_evidence_kinds = {
                         evidence_by_id[evidence_id].kind
@@ -452,14 +496,6 @@ class TaskRunRecords(DomainModel):
                     "evaluation evidence references must exist in task run records"
                 )
             if evaluation.status is EvaluationStatus.COMPLETED:
-                input_evidence_kinds = {
-                    evidence_by_id[evidence_id].kind
-                    for evidence_id in evaluation.input_evidence_refs
-                }
-                if EvidenceKind.EVALUATION_INPUT not in input_evidence_kinds:
-                    raise ValueError(
-                        "a completed evaluation requires evaluation input evidence"
-                    )
                 judgment_evidence_ids = set(evaluation.evidence_refs)
                 for result in evaluation.scorer_results:
                     judgment_evidence_ids.update(result.evidence_refs)
@@ -482,47 +518,59 @@ class TaskRunRecords(DomainModel):
                     "evidence must belong to an existing test case"
                 )
 
-            execution_attempt_ids = set()
-            for result in self.execution_results:
-                if (
-                    result.test_item_id,
-                    result.case_id,
-                    result.step_id,
-                    result.round_index,
-                ) == (
-                    evidence.test_item_id,
-                    evidence.case_id,
-                    evidence.step_id,
-                    evidence.round_index,
-                ):
-                    execution_attempt_ids.update(
-                        attempt.attempt_id
-                        for attempt in result.attempts
-                    )
-            evaluation_ids = {
-                evaluation.evaluation_id
-                for evaluation in self.evaluation_results
-                if (
-                    evaluation.test_item_id,
-                    evaluation.case_id,
-                    evaluation.step_id,
-                    evaluation.round_index,
-                ) == (
-                    evidence.test_item_id,
-                    evidence.case_id,
-                    evidence.step_id,
-                    evidence.round_index,
-                )
-            }
             if evidence.producer_type.value == "execution_attempt":
-                if evidence.producer_id not in execution_attempt_ids:
-                    raise ValueError(
-                        "execution evidence producer must be an existing attempt"
+                matching_attempt = any(
+                    attempt.attempt_id == evidence.producer_id
+                    and evidence.evidence_id in attempt.evidence_refs
+                    for result in self.execution_results
+                    if (
+                        result.test_item_id,
+                        result.case_id,
+                        result.step_id,
+                        result.round_index,
+                    ) == (
+                        evidence.test_item_id,
+                        evidence.case_id,
+                        evidence.step_id,
+                        evidence.round_index,
                     )
-            elif evidence.producer_id not in evaluation_ids:
-                raise ValueError(
-                    "evaluation evidence producer must be an existing evaluation"
+                    for attempt in result.attempts
                 )
+                if not matching_attempt:
+                    raise ValueError(
+                        "execution evidence producer must own the exact evidence reference"
+                    )
+            else:
+                matching_evaluation = any(
+                    evaluation.evaluation_id == evidence.producer_id
+                    and (
+                        evidence.evidence_id in evaluation.evidence_refs
+                        or any(
+                            evidence.evidence_id in result.evidence_refs
+                            for result in evaluation.scorer_results
+                        )
+                        or any(
+                            evidence.evidence_id in error.evidence_refs
+                            for error in evaluation.errors
+                        )
+                    )
+                    for evaluation in self.evaluation_results
+                    if (
+                        evaluation.test_item_id,
+                        evaluation.case_id,
+                        evaluation.step_id,
+                        evaluation.round_index,
+                    ) == (
+                        evidence.test_item_id,
+                        evidence.case_id,
+                        evidence.step_id,
+                        evidence.round_index,
+                    )
+                )
+                if not matching_evaluation:
+                    raise ValueError(
+                        "evaluation evidence producer must own the exact evidence reference"
+                    )
 
         unique_id_groups = (
             ("case IDs", [record.case_id for record in self.test_cases]),
