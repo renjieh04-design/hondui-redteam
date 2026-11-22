@@ -8,8 +8,8 @@ from pydantic import model_validator
 from redteam.core.models.case import TestCase
 from redteam.core.models.context import TaskContext
 from redteam.core.models.decision import AttackDecision
-from redteam.core.models.evaluation import EvaluationResult
-from redteam.core.models.evidence import EvidenceReference
+from redteam.core.models.evaluation import EvaluationResult, EvaluationStatus
+from redteam.core.models.evidence import EvidenceKind, EvidenceReference
 from redteam.core.models.execution import ExecutionResult, ExecutionStatus
 from redteam.core.models.step import StepContext
 from redteam.core.models.task import (
@@ -378,12 +378,49 @@ class TaskRunRecords(DomainModel):
                     "evaluation rules must exactly match the test item"
                 )
 
+        evaluation_by_id = {
+            evaluation.evaluation_id: evaluation
+            for evaluation in self.evaluation_results
+        }
+        for evaluation in self.evaluation_results:
+            if evaluation.supersedes_evaluation_id is None:
+                continue
+            previous = evaluation_by_id.get(
+                evaluation.supersedes_evaluation_id
+            )
+            if previous is None:
+                raise ValueError(
+                    "superseded evaluation must exist in the task run"
+                )
+            evaluation_lineage = (
+                evaluation.task_id,
+                evaluation.test_item_id,
+                evaluation.case_id,
+                evaluation.step_id,
+                evaluation.round_index,
+            )
+            previous_lineage = (
+                previous.task_id,
+                previous.test_item_id,
+                previous.case_id,
+                previous.step_id,
+                previous.round_index,
+            )
+            if evaluation_lineage != previous_lineage:
+                raise ValueError(
+                    "superseded evaluation must have matching lineage"
+                )
+
         evidence_ids = {
             evidence.evidence_id
             for evidence in self.evidence_references
         }
         if len(evidence_ids) != len(self.evidence_references):
             raise ValueError("evidence IDs must be unique within a task run")
+        evidence_by_id = {
+            evidence.evidence_id: evidence
+            for evidence in self.evidence_references
+        }
 
         for result in self.execution_results:
             for attempt in result.attempts:
@@ -391,6 +428,18 @@ class TaskRunRecords(DomainModel):
                     raise ValueError(
                         "execution attempt evidence references must exist in task run records"
                     )
+                if attempt.status is ExecutionStatus.SUCCESS:
+                    attempt_evidence_kinds = {
+                        evidence_by_id[evidence_id].kind
+                        for evidence_id in attempt.evidence_refs
+                    }
+                    if (
+                        EvidenceKind.TARGET_REQUEST not in attempt_evidence_kinds
+                        or EvidenceKind.TARGET_RESPONSE not in attempt_evidence_kinds
+                    ):
+                        raise ValueError(
+                            "a successful execution attempt requires target request and response evidence"
+                        )
         for evaluation in self.evaluation_results:
             evaluation_evidence_ids = set(evaluation.input_evidence_refs)
             evaluation_evidence_ids.update(evaluation.evidence_refs)
@@ -402,6 +451,26 @@ class TaskRunRecords(DomainModel):
                 raise ValueError(
                     "evaluation evidence references must exist in task run records"
                 )
+            if evaluation.status is EvaluationStatus.COMPLETED:
+                input_evidence_kinds = {
+                    evidence_by_id[evidence_id].kind
+                    for evidence_id in evaluation.input_evidence_refs
+                }
+                if EvidenceKind.EVALUATION_INPUT not in input_evidence_kinds:
+                    raise ValueError(
+                        "a completed evaluation requires evaluation input evidence"
+                    )
+                judgment_evidence_ids = set(evaluation.evidence_refs)
+                for result in evaluation.scorer_results:
+                    judgment_evidence_ids.update(result.evidence_refs)
+                judgment_evidence_kinds = {
+                    evidence_by_id[evidence_id].kind
+                    for evidence_id in judgment_evidence_ids
+                }
+                if EvidenceKind.EVALUATION_JUDGMENT not in judgment_evidence_kinds:
+                    raise ValueError(
+                        "a completed evaluation requires evaluation judgment evidence"
+                    )
 
         for evidence in self.evidence_references:
             case = test_cases.get(evidence.case_id)
