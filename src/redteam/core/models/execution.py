@@ -60,6 +60,7 @@ class ExecutionAttempt(DomainModel):
     attempt_no: PositiveInt
     status: ExecutionStatus
 
+    # Normalized text for display. Original material belongs in the evidence store.
     response_text: NonEmptyStr | None = None
     partial_response_text: NonEmptyStr | None = None
     error: ExecutionError | None = None
@@ -119,6 +120,10 @@ class ExecutionResult(DomainModel):
 
     attempts: tuple[ExecutionAttempt, ...] = Field(min_length=1)
     selected_attempt_id: NonEmptyStr | None = None
+
+    def to_archive_json(self) -> str:
+        """Serialize only fields accepted by model_validate_json."""
+        return self.model_dump_json(round_trip=True)
 
     @model_validator(mode="after")
     def validate_attempt_sequence_and_selection(self) -> Self:

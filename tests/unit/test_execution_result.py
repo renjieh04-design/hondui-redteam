@@ -268,3 +268,8 @@ def test_models_reject_fields_outside_the_v1_contract() -> None:
 
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
         ExecutionResult.model_validate(data)
+
+
+def test_archive_round_trip():
+    result = ExecutionResult.model_validate(_result_data())
+    assert ExecutionResult.model_validate_json(result.to_archive_json()) == result
