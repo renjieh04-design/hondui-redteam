@@ -1,0 +1,4 @@
+- strategy_id: example-format-check
+  name: 示例格式检查
+  description: 用于本地验证资源加载的无害样例。
+  guidance: 使用固定示例文本检查字段格式。

@@ -1,0 +1,9 @@
+- strategy_id: direct
+  name: Direct fixture
+  description: Use a direct input in the integration flow.
+  guidance: Keep the test input concise and explicit.
+
+- strategy_id: contextual
+  name: Contextual fixture
+  description: Adapt the next input using evaluated history.
+  guidance: Use prior target responses and evaluation feedback.
